@@ -1,6 +1,6 @@
-# 🌿 SelfCare AI — Mood & Habit Tracking App
+# SelfCare AI Mood & Habit Tracking App
 
-## 📱 Overview
+## Overview
 
 SelfCare AI is a mobile self-care app that helps users improve their mental wellbeing, habits, and daily routines through mood tracking, habit tracking, and AI-powered insights.
 
@@ -8,7 +8,7 @@ The app goes beyond simple tracking by analyzing patterns between moods and habi
 
 ---
 
-## 🎯 Core Idea
+## Core Idea
 
 Most self-care apps only let users _log data_.
 
@@ -24,21 +24,21 @@ And turns them into **actionable AI insights**.
 
 ---
 
-## ✨ Key Features
+## Key Features
 
-### 😊 Mood Tracking
+### Mood Tracking
 
 - Daily mood check-ins
 - Simple emotion selection (happy, stressed, tired, calm, anxious, etc.)
 - Mood history and trends over time
 
-### 📊 Habit Tracking
+### Habit Tracking
 
 - Custom habit creation (e.g. sleep, water, exercise, journaling)
 - Streak tracking
 - Completion reminders
 
-### 🤖 AI Insights (Core Feature)
+### AI Insights (Core Feature)
 
 - Detects patterns between habits and mood
 - Generates personalized suggestions like:
@@ -46,7 +46,7 @@ And turns them into **actionable AI insights**.
   - “Your stress increases when you sleep late”
   - “You are most productive in the morning”
 
-### 🔔 Smart Notifications
+### Smart Notifications
 
 - Mood check-in reminders
 - Habit reminders
@@ -60,7 +60,7 @@ Example:
 
 ---
 
-## 🧠 AI System Description
+## AI System Description
 
 The app collects user data over time:
 
@@ -79,7 +79,7 @@ The AI acts like a **personal wellbeing coach**, not just a tracker.
 
 ---
 
-## 🎨 User Experience
+## User Experience
 
 ### Onboarding Flow
 
@@ -98,7 +98,7 @@ The AI acts like a **personal wellbeing coach**, not just a tracker.
 
 ---
 
-## 💡 Monetization (Future Plan)
+## Monetization (Future Plan)
 
 - Free tier:
   - Basic mood tracking
@@ -114,7 +114,7 @@ The AI acts like a **personal wellbeing coach**, not just a tracker.
 
 ---
 
-## 🚀 Vision
+## Vision
 
 The goal of SelfCare AI is to become a **personal mental wellness companion** that helps users:
 
@@ -124,7 +124,7 @@ The goal of SelfCare AI is to become a **personal mental wellness companion** th
 
 ---
 
-## 🛠️ Tech Concept (Optional)
+## Tech Concept (Optional)
 
 - Mobile app (React Native / Flutter)
 - AI backend for pattern recognition and recommendations
@@ -133,7 +133,7 @@ The goal of SelfCare AI is to become a **personal mental wellness companion** th
 
 ---
 
-## 🌱 Future Ideas
+## Future Ideas
 
 - Emotion wheel input
 - Voice-based mood check-ins
@@ -143,6 +143,6 @@ The goal of SelfCare AI is to become a **personal mental wellness companion** th
 
 ---
 
-## 📌 Summary
+## Summary
 
 SelfCare AI is a habit + mood tracking app enhanced with AI that transforms daily self-care data into meaningful, personalized mental wellness guidance.
