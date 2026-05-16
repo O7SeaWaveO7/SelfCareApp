@@ -9,6 +9,8 @@ import React, {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+export type HabitFrequency = "daily" | "weekdays" | "custom";
+
 export type Habit = {
   id: string;
   name: string;
@@ -16,6 +18,14 @@ export type Habit = {
   color: string;
   completedDates: string[]; // 'YYYY-MM-DD' local date strings
   createdAt: string;
+  frequency: HabitFrequency;
+  // customDays[0]=Sun … customDays[6]=Sat, matches JS getDay()
+  customDays: boolean[];
+  remindEnabled: boolean;
+  remindHour: number;   // 0–23
+  remindMinute: number; // 0–59
+  timerEnabled: boolean;
+  timerMinutes: number;
 };
 
 export type BadgeId =
@@ -97,6 +107,17 @@ function localDateStr(date: Date): string {
 }
 
 export const todayStr = (): string => localDateStr(new Date());
+
+// ─── Frequency Helper ─────────────────────────────────────────────────────────
+
+export function isHabitActiveToday(habit: Habit): boolean {
+  const dow = new Date().getDay(); // 0=Sun … 6=Sat
+  const freq = habit.frequency ?? "daily";
+  if (freq === "daily") return true;
+  if (freq === "weekdays") return dow >= 1 && dow <= 5;
+  // custom — guard against habits saved before this field existed
+  return Array.isArray(habit.customDays) ? (habit.customDays[dow] ?? true) : true;
+}
 
 // ─── Streak Helpers ───────────────────────────────────────────────────────────
 
@@ -222,17 +243,25 @@ const MESSAGES = [
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 
+export type HabitConfig = {
+  name: string;
+  emoji: string;
+  color: string;
+  frequency: HabitFrequency;
+  customDays: boolean[];
+  remindEnabled: boolean;
+  remindHour: number;
+  remindMinute: number;
+  timerEnabled: boolean;
+  timerMinutes: number;
+};
+
 type HabitsContextType = {
   habits: Habit[];
   stats: UserStats;
   isLoading: boolean;
-  addHabit: (name: string, emoji: string, color: string) => Promise<void>;
-  editHabit: (
-    id: string,
-    name: string,
-    emoji: string,
-    color: string,
-  ) => Promise<void>;
+  addHabit: (cfg: HabitConfig) => Promise<void>;
+  editHabit: (id: string, cfg: HabitConfig) => Promise<void>;
   deleteHabit: (id: string) => Promise<void>;
   toggleHabit: (id: string) => Promise<ToggleResult | null>;
 };
@@ -257,7 +286,19 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
           AsyncStorage.getItem(HABITS_KEY),
           AsyncStorage.getItem(STATS_KEY),
         ]);
-        if (hj) setHabits(JSON.parse(hj));
+        if (hj) {
+          const loaded: Habit[] = JSON.parse(hj);
+          setHabits(loaded.map((h) => ({
+            frequency:     "daily",
+            customDays:    [true, true, true, true, true, true, true],
+            remindEnabled: false,
+            remindHour:    8,
+            remindMinute:  0,
+            timerEnabled:  false,
+            timerMinutes:  5,
+            ...h,
+          })));
+        }
         if (sj) setStats(JSON.parse(sj));
       } catch (e) {
         console.error("HabitsProvider load error:", e);
@@ -277,14 +318,12 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addHabit = useCallback(
-    async (name: string, emoji: string, color: string) => {
+    async (cfg: HabitConfig) => {
       const newHabit: Habit = {
         id: Date.now().toString(),
-        name,
-        emoji,
-        color,
         completedDates: [],
         createdAt: todayStr(),
+        ...cfg,
       };
       await persist([...habits, newHabit], stats);
     },
@@ -292,9 +331,9 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
   );
 
   const editHabit = useCallback(
-    async (id: string, name: string, emoji: string, color: string) => {
+    async (id: string, cfg: HabitConfig) => {
       await persist(
-        habits.map((h) => (h.id === id ? { ...h, name, emoji, color } : h)),
+        habits.map((h) => (h.id === id ? { ...h, ...cfg } : h)),
         stats,
       );
     },

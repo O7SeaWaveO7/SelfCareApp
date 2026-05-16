@@ -1,5 +1,4 @@
 import { HapticTab } from "@/components/haptic-tab";
-import { useSettings } from "@/contexts/settings-context";
 import { Tabs, useRouter } from "expo-router";
 import React from "react";
 import {
@@ -11,37 +10,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const DARK_C = {
+const C = {
   bg: "#0D1117",
   border: "#21293D",
   accent: "#5B8AF0",
   muted: "#6B7A99",
   white: "#FFFFFF",
-};
-
-const LIGHT_C = {
-  bg: "#F5F5F5",
-  border: "#E0E0E0",
-  accent: "#5B8AF0",
-  muted: "#999999",
-  white: "#FFFFFF",
-};
-
-// White icons for dark mode, black icons for light mode
-const DARK_ICONS = {
-  habit: require("@/assets/images/tabs/WhiteOutlineHabit128.png"),
-  calendar: require("@/assets/images/tabs/WhiteOutlineCalendar128.png"),
-  rewards: require("@/assets/images/tabs/WhiteOutlineRewards128.png"),
-  profile: require("@/assets/images/tabs/WhiteOutlineProfile128.png"),
-};
-
-const LIGHT_ICONS = {
-  habit: require("@/assets/images/tabs/BlackOutlineHabit128.png"),
-  calendar: require("@/assets/images/tabs/BlackOutlineCalendar128.png"),
-  rewards: require("@/assets/images/tabs/BlackOutlineRewards128.png"),
-  profile: require("@/assets/images/tabs/BlackOutlineProfile128.png"),
 };
 
 function TabIcon({
@@ -54,12 +29,18 @@ function TabIcon({
   return (
     <Image
       source={source}
-      style={{ width: 25, height: 25, opacity: focused ? 1 : 0.4 }}
+      style={{
+        width: 40,
+        height: 40,
+        opacity: focused ? 1 : 0.4,
+        tintColor: C.white,
+      }}
       resizeMode="contain"
     />
   );
 }
 
+// Separate component so useRouter hook works inside it
 function AddButton() {
   const router = useRouter();
   return (
@@ -76,12 +57,6 @@ function AddButton() {
 }
 
 export default function TabLayout() {
-  const insets = useSafeAreaInsets();
-  const { settings } = useSettings();
-  const bottomPad = Math.max(insets.bottom, 10);
-  const C = settings.lightMode ? LIGHT_C : DARK_C;
-  const ICONS = settings.lightMode ? LIGHT_ICONS : DARK_ICONS;
-
   return (
     <Tabs
       screenOptions={{
@@ -93,9 +68,9 @@ export default function TabLayout() {
           backgroundColor: C.bg,
           borderTopColor: C.border,
           borderTopWidth: 1,
-          height: 64 + bottomPad,
+          height: Platform.OS === "ios" ? 84 : 64,
           paddingTop: 8,
-          paddingBottom: bottomPad,
+          paddingBottom: Platform.OS === "ios" ? 26 : 10,
         },
         tabBarLabelStyle: {
           fontSize: 10,
@@ -109,7 +84,10 @@ export default function TabLayout() {
         options={{
           title: "Habits",
           tabBarIcon: ({ focused }) => (
-            <TabIcon source={ICONS.habit} focused={focused} />
+            <TabIcon
+              source={require("@/assets/images/tabs/WhiteOutlineHabit.png")}
+              focused={focused}
+            />
           ),
         }}
       />
@@ -118,7 +96,10 @@ export default function TabLayout() {
         options={{
           title: "Streaks",
           tabBarIcon: ({ focused }) => (
-            <TabIcon source={ICONS.calendar} focused={focused} />
+            <TabIcon
+              source={require("@/assets/images/tabs/WhiteOutlineCalendar.png")}
+              focused={focused}
+            />
           ),
         }}
       />
@@ -135,7 +116,10 @@ export default function TabLayout() {
         options={{
           title: "Rewards",
           tabBarIcon: ({ focused }) => (
-            <TabIcon source={ICONS.rewards} focused={focused} />
+            <TabIcon
+              source={require("@/assets/images/tabs/WhiteOutlineRewards.png")}
+              focused={focused}
+            />
           ),
         }}
       />
@@ -144,7 +128,10 @@ export default function TabLayout() {
         options={{
           title: "Profile",
           tabBarIcon: ({ focused }) => (
-            <TabIcon source={ICONS.profile} focused={focused} />
+            <TabIcon
+              source={require("@/assets/images/tabs/WhiteOutlineProfile.png")}
+              focused={focused}
+            />
           ),
         }}
       />
@@ -163,17 +150,17 @@ const s = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: DARK_C.accent,
+    backgroundColor: C.accent,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: DARK_C.accent,
+    shadowColor: C.accent,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 8,
     elevation: 8,
   },
   addPlus: {
-    color: DARK_C.white,
+    color: C.white,
     fontSize: 28,
     fontWeight: "300",
     lineHeight: 32,

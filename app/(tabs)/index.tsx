@@ -1,6 +1,8 @@
+import { useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
   Alert,
+  Image,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -10,77 +12,70 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { C } from "@/constants/habitColors";
+import HabitRow from "@/components/habits/HabitRow";
+import Toast from "@/components/habits/Toast";
 import {
-  getLevelInfo,
   Habit,
+  isHabitActiveToday,
   todayStr,
   ToggleResult,
   useHabits,
 } from "@/contexts/habits-context";
+import { useTheme } from "@/hooks/useTheme";
+import { useSettings } from "@/contexts/settings-context";
 
-import HabitModal from "@/components/habits/HabitModal";
-import HabitRow from "@/components/habits/HabitRow";
-import LevelBar from "@/components/habits/LevelBar";
-import Toast from "@/components/habits/Toast";
+type Filter = "today" | "all";
 
-export default function TodayScreen() {
-  const { habits, stats, addHabit, editHabit, deleteHabit, toggleHabit } =
-    useHabits();
+export default function HomeScreen() {
+  const { habits, deleteHabit, toggleHabit } = useHabits();
+  const { settings } = useSettings();
+  const router = useRouter();
+  const C = useTheme();
 
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<Habit | undefined>();
   const [toast, setToast] = useState<ToggleResult | null>(null);
+  const [filter, setFilter] = useState<Filter>("today");
 
   const today = todayStr();
-  const done = habits.filter((h) => h.completedDates.includes(today)).length;
-  const total = habits.length;
-  const levelInfo = getLevelInfo(stats.totalPoints);
+  const todayHabits = habits.filter(isHabitActiveToday);
+  const visibleHabits = filter === "today" ? todayHabits : habits;
+  const done = todayHabits.filter((h) => h.completedDates.includes(today)).length;
+  const total = todayHabits.length;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
-  const dateLabel = new Date().toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  });
+  const dateLabel = new Date()
+    .toLocaleDateString("en-US", { weekday: "short", month: "long", day: "numeric" })
+    .toLowerCase();
 
-  const onToggle = useCallback(
-    async (id: string) => {
-      const result = await toggleHabit(id);
-      if (result) setToast(result);
-    },
-    [toggleHabit],
-  );
+  const motivationMsg = () => {
+    if (total === 0) return "No habits scheduled today 🌱";
+    if (done === total) return "Perfect day! You crushed it! 🏆";
+    if (done === 0) return "Ready to build some habits? 💪";
+    return `${done} of ${total} done today.\nYou're on a roll!`;
+  };
+
+  const onToggle = useCallback(async (id: string) => {
+    const result = await toggleHabit(id);
+    if (result) setToast(result);
+  }, [toggleHabit]);
 
   const openMenu = (habit: Habit) =>
     Alert.alert(habit.name, undefined, [
+      { text: "Edit", onPress: () => router.push({ pathname: "./add", params: { id: habit.id } }) },
       {
-        text: "Edit",
-        onPress: () => {
-          setEditing(habit);
-          setModalOpen(true);
-        },
-      },
-      {
-        text: "Delete",
-        style: "destructive",
+        text: "Delete", style: "destructive",
         onPress: () =>
           Alert.alert("Delete habit?", `Remove "${habit.name}" permanently?`, [
             { text: "Cancel", style: "cancel" },
-            {
-              text: "Delete",
-              style: "destructive",
-              onPress: () => deleteHabit(habit.id),
-            },
+            { text: "Delete", style: "destructive", onPress: () => deleteHabit(habit.id) },
           ]),
       },
       { text: "Cancel", style: "cancel" },
     ]);
 
   return (
-    <View style={s.root}>
-      <StatusBar barStyle="light-content" />
+    <View style={[s.root, { backgroundColor: C.bg }]}>
+      <StatusBar barStyle={settings.lightMode ? "dark-content" : "light-content"} />
       <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
-        {/* Floating toast — sits above scroll content */}
         {toast && <Toast result={toast} onHide={() => setToast(null)} />}
 
         <ScrollView
@@ -88,37 +83,78 @@ export default function TodayScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Date + title */}
-          <Text style={s.date}>{dateLabel}</Text>
-          <Text style={s.title}>Today</Text>
+          {/* Header */}
+          <View style={s.header}>
+            <View style={[s.avatar, { backgroundColor: C.card, borderColor: C.border }]}>
+              <Image
+                source={require("@/assets/images/mood/happy.png")}
+                style={s.avatarEmoji}
+                resizeMode="contain"
+              />
+            </View>
+            <View style={{ marginLeft: 12, flex: 1 }}>
+              <Text style={[s.welcomeText, { color: C.text }]}>Welcome back!</Text>
+              <Text style={[s.dateText, { color: C.sub }]}>{dateLabel}</Text>
+            </View>
+          </View>
 
-          {/* Level + XP */}
-          <LevelBar info={levelInfo} points={stats.totalPoints} />
-
-          {/* Progress summary line */}
-          {total > 0 && (
-            <Text style={s.progress}>
-              {done === total
-                ? `🏆 Perfect day — all ${total} done!`
-                : `${done} of ${total} completed`}
-            </Text>
+          {/* Progress card */}
+          {habits.length > 0 && (
+            <View style={[s.progressCard, { backgroundColor: C.card, borderColor: C.border }]}>
+              <View style={s.progressTextRow}>
+                <Text style={[s.progressMsg, { color: C.text }]}>{motivationMsg()}</Text>
+                <Text style={[s.progressPct, { color: C.accent }]}>{pct}%</Text>
+              </View>
+              <View style={[s.barTrack, { backgroundColor: C.border }]}>
+                <View style={[s.barFill, { width: `${pct}%`, backgroundColor: C.accent }]} />
+              </View>
+            </View>
           )}
 
-          {/* Habits */}
+          {/* Filter tabs */}
+          {habits.length > 0 && (
+            <View style={s.filterRow}>
+              {(["today", "all"] as Filter[]).map((f) => (
+                <TouchableOpacity
+                  key={f}
+                  style={[
+                    s.filterChip,
+                    { borderColor: C.border, backgroundColor: C.card },
+                    filter === f && { backgroundColor: C.accent, borderColor: C.accent },
+                  ]}
+                  onPress={() => setFilter(f)}
+                >
+                  <Text style={[
+                    s.filterTxt, { color: C.sub },
+                    filter === f && { color: C.white },
+                  ]}>
+                    {f.charAt(0).toUpperCase() + f.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {/* Habit list */}
           {habits.length === 0 ? (
             <View style={s.empty}>
               <Text style={s.emptyIcon}>🌱</Text>
-              <Text style={s.emptyTitle}>No habits yet</Text>
-              <Text style={s.emptySub}>
-                Tap "Add Habit" to start your routine
-              </Text>
+              <Text style={[s.emptyTitle, { color: C.text }]}>No habits yet</Text>
+              <Text style={[s.emptySub, { color: C.sub }]}>Tap + to add your first habit</Text>
+            </View>
+          ) : visibleHabits.length === 0 ? (
+            <View style={s.empty}>
+              <Text style={s.emptyIcon}>☀️</Text>
+              <Text style={[s.emptyTitle, { color: C.text }]}>Nothing scheduled today</Text>
+              <Text style={[s.emptySub, { color: C.sub }]}>Switch to All to see every habit</Text>
             </View>
           ) : (
             <View style={s.list}>
-              {habits.map((habit) => (
+              {visibleHabits.map((habit) => (
                 <HabitRow
                   key={habit.id}
                   habit={habit}
+                  isActiveToday={isHabitActiveToday(habit)}
                   onToggle={() => onToggle(habit.id)}
                   onLongPress={() => openMenu(habit)}
                 />
@@ -126,75 +162,40 @@ export default function TodayScreen() {
             </View>
           )}
 
-          {/* Add habit */}
-          <TouchableOpacity
-            style={s.addBtn}
-            onPress={() => {
-              setEditing(undefined);
-              setModalOpen(true);
-            }}
-            activeOpacity={0.8}
-          >
-            <Text style={s.addTxt}>+ Add Habit</Text>
-          </TouchableOpacity>
-
           {habits.length > 0 && (
-            <Text style={s.hint}>Long-press a habit to edit or delete</Text>
+            <Text style={[s.hint, { color: C.muted }]}>Long-press a habit to edit or delete</Text>
           )}
         </ScrollView>
-
-        <HabitModal
-          visible={modalOpen}
-          onClose={() => setModalOpen(false)}
-          onSave={(name, emoji, color) => {
-            if (editing) editHabit(editing.id, name, emoji, color);
-            else addHabit(name, emoji, color);
-          }}
-          initial={editing}
-        />
       </SafeAreaView>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.bg },
-  scroll: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 48 },
+  root:   { flex: 1 },
+  scroll: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 48 },
 
-  date: { color: C.sub, fontSize: 12, marginBottom: 4 },
-  title: {
-    color: C.text,
-    fontSize: 28,
-    fontWeight: "800",
-    letterSpacing: -0.5,
-    marginBottom: 20,
-  },
+  header: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
+  avatar: { width: 90, height: 90, borderRadius: 100, borderWidth: 2, alignItems: "center", justifyContent: "center" },
+  avatarEmoji:  { width: 100, height: 100 },
+  welcomeText:  { fontSize: 18, fontWeight: "700", marginBottom: 2 },
+  dateText:     { fontSize: 13, fontWeight: "500" },
 
-  progress: { color: C.sub, fontSize: 13, marginBottom: 16 },
+  progressCard:    { borderRadius: 18, padding: 18, marginBottom: 20, borderWidth: 1 },
+  progressTextRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 },
+  progressMsg:     { fontSize: 15, fontWeight: "600", lineHeight: 22, flex: 1, marginRight: 8 },
+  progressPct:     { fontSize: 20, fontWeight: "800" },
+  barTrack:        { height: 6, borderRadius: 3, overflow: "hidden" },
+  barFill:         { height: "100%", borderRadius: 3 },
 
-  list: { gap: 8, marginBottom: 20 },
+  filterRow:       { flexDirection: "row", gap: 10, marginBottom: 16 },
+  filterChip:      { paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
+  filterTxt:       { fontSize: 13, fontWeight: "600" },
 
-  empty: {
-    alignItems: "center",
-    paddingVertical: 56,
-  },
-  emptyIcon: { fontSize: 44, marginBottom: 14 },
-  emptyTitle: {
-    color: C.text,
-    fontSize: 17,
-    fontWeight: "700",
-    marginBottom: 6,
-  },
-  emptySub: { color: C.sub, fontSize: 13 },
-
-  addBtn: {
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: C.border,
-    borderStyle: "dashed",
-  },
-  addTxt: { color: C.accent, fontSize: 15, fontWeight: "700" },
-  hint: { color: C.muted, fontSize: 11, textAlign: "center", marginTop: 12 },
+  list:      { gap: 10, marginBottom: 16 },
+  empty:     { alignItems: "center", paddingVertical: 64 },
+  emptyIcon:  { fontSize: 48, marginBottom: 16 },
+  emptyTitle: { fontSize: 18, fontWeight: "700", marginBottom: 8 },
+  emptySub:   { fontSize: 13 },
+  hint:       { fontSize: 11, textAlign: "center", marginTop: 8 },
 });

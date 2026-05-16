@@ -1,99 +1,136 @@
-import React, { useRef } from 'react';
-import { View, Text, TouchableOpacity, Animated, StyleSheet } from 'react-native';
-import { Habit, todayStr, getCurrentStreak } from '@/contexts/habits-context';
-import { C } from '@/constants/habitColors';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { getCurrentStreak, Habit, todayStr } from '@/contexts/habits-context';
+import { useTheme } from '@/hooks/useTheme';
 
 type Props = {
   habit: Habit;
+  isActiveToday: boolean;
   onToggle: () => void;
   onLongPress: () => void;
 };
 
-export default function HabitRow({ habit, onToggle, onLongPress }: Props) {
+function pad(n: number) { return String(n).padStart(2, '0'); }
+
+export default function HabitRow({ habit, isActiveToday, onToggle, onLongPress }: Props) {
+  const C = useTheme();
   const done   = habit.completedDates.includes(todayStr());
   const streak = getCurrentStreak(habit.completedDates);
   const scale  = useRef(new Animated.Value(1)).current;
 
-  const handlePress = () => {
+  const totalSeconds = (habit.timerMinutes ?? 5) * 60;
+  const [secondsLeft, setSecondsLeft] = useState(totalSeconds);
+  const [running,     setRunning]     = useState(false);
+  const autoCompletedRef = useRef(false);
+
+  useEffect(() => {
+    setSecondsLeft(totalSeconds);
+    setRunning(false);
+    autoCompletedRef.current = false;
+  }, [habit.id, totalSeconds, done]);
+
+  useEffect(() => {
+    if (!running) return;
+    const id = setInterval(() => {
+      setSecondsLeft(prev => {
+        if (prev <= 1) { setRunning(false); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [running]);
+
+  useEffect(() => {
+    if (secondsLeft === 0 && !done && !autoCompletedRef.current) {
+      autoCompletedRef.current = true;
+      onToggle();
+    }
+  }, [secondsLeft]);
+
+  const handleCheckPress = () => {
+    if ((habit.timerEnabled ?? false) && !done && secondsLeft > 0) return;
     Animated.sequence([
-      Animated.spring(scale, { toValue: 1.3,  useNativeDriver: true, tension: 400, friction: 8 }),
+      Animated.spring(scale, { toValue: 1.25, useNativeDriver: true, tension: 400, friction: 8 }),
       Animated.spring(scale, { toValue: 1,    useNativeDriver: true, tension: 300, friction: 10 }),
     ]).start();
     onToggle();
   };
 
+  const toggleTimer = () => {
+    if (secondsLeft === 0) { setSecondsLeft(totalSeconds); autoCompletedRef.current = false; setRunning(true); }
+    else setRunning(r => !r);
+  };
+
+  const mins = Math.floor(secondsLeft / 60);
+  const secs = secondsLeft % 60;
+  const showTimer    = (habit.timerEnabled ?? false) && !done && isActiveToday;
+  const checkBlocked = (habit.timerEnabled ?? false) && !done && secondsLeft > 0 && isActiveToday;
+
+  const timerLabel = running
+    ? `⏱ ${pad(mins)}:${pad(secs)}`
+    : secondsLeft === totalSeconds
+      ? `⏱ ${habit.timerMinutes ?? 5} min  ·  tap to start`
+      : `⏸ ${pad(mins)}:${pad(secs)}  ·  tap to resume`;
+
   return (
     <TouchableOpacity
       onLongPress={onLongPress}
-      activeOpacity={0.75}
-      style={[s.row, done && s.rowDone]}
+      activeOpacity={0.7}
+      style={[s.row, { backgroundColor: C.card, borderColor: C.border }, done && s.rowDone]}
     >
-      {/* Icon */}
-      <View style={[s.icon, { backgroundColor: habit.color + '20' }]}>
+      <View style={[s.iconWrap, { backgroundColor: habit.color + '18' }]}>
         <Text style={s.emoji}>{habit.emoji}</Text>
       </View>
 
-      {/* Text */}
       <View style={s.body}>
-        <Text style={[s.name, done && s.nameDone]}>{habit.name}</Text>
-        {streak > 0 && (
-          <Text style={[s.streak, { color: streak >= 7 ? C.gold : C.sub }]}>
-            🔥 {streak}-day streak
+        <Text style={[s.name, { color: C.text }, done && isActiveToday && { textDecorationLine: 'line-through', color: C.sub }]}>
+          {habit.name}
+        </Text>
+        {!isActiveToday ? (
+          <Text style={[s.subTxt, { color: C.muted, fontStyle: 'italic' }]}>not scheduled today</Text>
+        ) : done ? (
+          <Text style={[s.subTxt, { color: C.sub }]}>done</Text>
+        ) : showTimer ? (
+          <TouchableOpacity onPress={toggleTimer} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+            <Text style={[s.subTxt, { color: running ? C.accent : C.sub, fontWeight: '600' }]}>{timerLabel}</Text>
+          </TouchableOpacity>
+        ) : streak > 0 ? (
+          <Text style={[s.subTxt, { color: C.sub }]}>
+            {streak >= 7 ? '🔥' : '⚡'} {streak}-day streak
           </Text>
-        )}
+        ) : null}
       </View>
 
-      {/* Check button */}
-      <Animated.View style={{ transform: [{ scale }] }}>
-        <TouchableOpacity
-          onPress={handlePress}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          style={[s.check, done && { backgroundColor: C.green, borderColor: C.green }]}
-        >
-          {done && <Text style={s.checkMark}>✓</Text>}
-        </TouchableOpacity>
-      </Animated.View>
+      {isActiveToday && (
+        <Animated.View style={{ transform: [{ scale }] }}>
+          <TouchableOpacity
+            onPress={handleCheckPress}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            style={[
+              s.check,
+              { borderColor: C.border },
+              done && { backgroundColor: habit.color, borderColor: habit.color },
+              checkBlocked && { borderColor: C.muted, backgroundColor: C.muted + '20' },
+            ]}
+          >
+            {done && <Text style={s.checkMark}>✓</Text>}
+            {checkBlocked && <Text style={s.checkLock}>⏳</Text>}
+          </TouchableOpacity>
+        </Animated.View>
+      )}
     </TouchableOpacity>
   );
 }
 
 const s = StyleSheet.create({
-  row: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    backgroundColor: C.card,
-    borderRadius:    14,
-    paddingVertical: 12,
-    paddingLeft:     14,
-    paddingRight:    12,
-    borderWidth:     1,
-    borderColor:     C.border,
-  },
-  rowDone: { opacity: 0.55 },
-
-  icon: {
-    width:          40,
-    height:         40,
-    borderRadius:   12,
-    alignItems:     'center',
-    justifyContent: 'center',
-    marginRight:    12,
-  },
-  emoji: { fontSize: 20 },
-
-  body:     { flex: 1 },
-  name:     { color: C.text, fontSize: 15, fontWeight: '600' },
-  nameDone: { textDecorationLine: 'line-through', color: C.sub },
-  streak:   { fontSize: 12, marginTop: 2 },
-
-  check: {
-    width:          32,
-    height:         32,
-    borderRadius:   16,
-    borderWidth:    2,
-    borderColor:    C.border,
-    alignItems:     'center',
-    justifyContent: 'center',
-  },
-  checkMark: { color: C.bg, fontWeight: '900', fontSize: 17 },
+  row:       { flexDirection: 'row', alignItems: 'center', borderRadius: 16, paddingVertical: 14, paddingLeft: 14, paddingRight: 14, borderWidth: 1 },
+  rowDone:   { opacity: 0.6 },
+  iconWrap:  { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
+  emoji:     { fontSize: 22 },
+  body:      { flex: 1 },
+  name:      { fontSize: 15, fontWeight: '600' },
+  subTxt:    { fontSize: 11, marginTop: 3 },
+  check:     { width: 30, height: 30, borderRadius: 15, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  checkMark: { color: '#FFFFFF', fontWeight: '900', fontSize: 15 },
+  checkLock: { fontSize: 12 },
 });
